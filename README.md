@@ -12,7 +12,30 @@
 
 > 全部图片都是本仓库代码的实际渲染结果，见 [`references/previews/`](references/previews/)。
 
-## 30 秒安装
+## 让 AI 自己装（推荐）
+
+把仓库地址丢给任意 AI Agent，说一句「装这个技能」，它会读 [`AGENT-INSTALL.md`](AGENT-INSTALL.md) /
+[`install.json`](install.json)，然后跑零参数安装器——**自带依赖安装、自检，并输出一行 JSON 结果**：
+
+```powershell
+# Windows（Agent 或人类都可以直接跑）
+irm https://raw.githubusercontent.com/chasingstars-a/chalco-env-deck/main/agent-install.ps1 | iex
+```
+```bash
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/chasingstars-a/chalco-env-deck/main/agent-install.sh | bash
+```
+
+输出示例（`ok:true` 即可用）：
+
+```
+RESULT {"ok":true,"skill":"chalco-env-deck","version":"1.1.0","targets":["~/.dsh/skills/chalco-env-deck"],"files":39,"python":"Python 3.12.14","deps_install":false,"import_ok":true}
+```
+
+它会自动：选一个已装好依赖的 Python → 缺库就 `pip install` → 校验 `import chalco_deck`。常用开关：
+`-Destination`/`--dest` 指定目录、`-ZipPath`/`--zip` 离线安装、`-KeepExistingAssets`/`--keep-assets` 保住已有品牌素材、`-NoDeps`/`--no-deps` 跳过装依赖。
+
+## 30 秒安装（最小版）
 
 **Windows（PowerShell）**
 
@@ -26,7 +49,7 @@ irm https://raw.githubusercontent.com/chasingstars-a/chalco-env-deck/main/instal
 curl -fsSL https://raw.githubusercontent.com/chasingstars-a/chalco-env-deck/main/install.sh | bash
 ```
 
-安装脚本只做三件事：下载仓库压缩包 → 复制到 `~/.dsh/skills/chalco-env-deck`（若检测到 `~/.claude` 也会复制一份到 `~/.claude/skills/`）→ 校验 `SKILL.md` 与脚本是否存在。
+这两个脚本只做三件事：下载仓库压缩包 → 复制到 `~/.dsh/skills/chalco-env-deck`（若检测到 `~/.claude` 也会复制一份到 `~/.claude/skills/`）→ 校验 `SKILL.md` 与脚本是否存在。
 脚本很短，可以先[读一遍](install.ps1)再执行；不想联网也可以直接 clone 后手动复制：
 
 ```bash

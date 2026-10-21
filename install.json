@@ -1,0 +1,67 @@
+{
+  "name": "chalco-env-deck",
+  "display_name": "绿色环保企业风格 PPT 技能",
+  "version": "1.1.0",
+  "type": "ai-skill",
+  "description": "用品牌绿渐变 + 微软雅黑生成中文商务 PPT：5 种页面骨架、13 个内容块、成品自检脚本。",
+  "license": "MIT",
+  "repo": "https://github.com/chasingstars-a/chalco-env-deck",
+  "default_branch": "main",
+  "entry": "SKILL.md",
+  "agent_entry": "AGENT-INSTALL.md",
+  "install": {
+    "windows": "irm https://raw.githubusercontent.com/chasingstars-a/chalco-env-deck/main/agent-install.ps1 | iex",
+    "windows_noninteractive": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"iwr -UseBasicParsing https://raw.githubusercontent.com/chasingstars-a/chalco-env-deck/main/agent-install.ps1 -OutFile $env:TEMP\\chalco-ai.ps1; & $env:TEMP\\chalco-ai.ps1\"",
+    "posix": "curl -fsSL https://raw.githubusercontent.com/chasingstars-a/chalco-env-deck/main/agent-install.sh | bash",
+    "zip_fallback": "https://codeload.github.com/chasingstars-a/chalco-env-deck/zip/refs/heads/main"
+  },
+  "options": {
+    "dest": "-Destination <path> / --dest <path>：自定安装目录",
+    "zip": "-ZipPath <zip> / --zip <zip>：离线安装",
+    "proxy": "-Proxy <url>：Windows 代理；POSIX 用 HTTPS_PROXY",
+    "no_deps": "-NoDeps / --no-deps：不自动装 Python 依赖",
+    "keep_assets": "-KeepExistingAssets / --keep-assets：保留目标目录已有的 assets/（品牌素材不被覆盖）",
+    "python": "环境变量 CHALCO_PYTHON=<python 路径> 可指定解释器"
+  },
+  "targets": [
+    "~/.dsh/skills/chalco-env-deck",
+    "~/.claude/skills/chalco-env-deck"
+  ],
+  "target_detection": "安装到已存在的 ~/.dsh 或 ~/.claude 下；两者都不存在时建 ~/.dsh/skills",
+  "dependencies": {
+    "runtime": "python>=3.9",
+    "pip": [
+      "python-pptx>=1.0",
+      "pillow>=9.0"
+    ],
+    "auto_install": true,
+    "system_fonts": [
+      "Microsoft YaHei（Windows 自带；mac/Linux 需自备或改 FONT 常量）"
+    ]
+  },
+  "verify": {
+    "import": "cd <skill>/scripts && python -c \"import chalco_deck;print(chalco_deck.SW,chalco_deck.SH)\"  # 期望 13.333 7.5",
+    "build": "cd <work> && python <skill>/examples/build_demo.py",
+    "check": "python <skill>/scripts/check_deck.py <work>/demo/*.pptx",
+    "pass_criteria": "check_deck.py 退出码 0 且输出「结果：0 个错误，0 个警告」"
+  },
+  "assets": {
+    "kind": "generated_placeholders",
+    "replace_by": "用自己的同名文件覆盖 assets/ 即可换成自有品牌（logo_emblem.png / logo_wordmark.png / qr_wechat.png / bg_*.jpg）",
+    "generator": "tools/make_placeholders.py"
+  },
+  "agent_hints": {
+    "read_first": [
+      "AGENT-INSTALL.md",
+      "SKILL.md"
+    ],
+    "success_signal": "stdout 最后一行以 `RESULT ` 开头；JSON 里 ok=true 且 import_ok=true，退出码 0",
+    "failure_signal": "ok=false，字段 hint 给出下一步（通常是 pip 安装失败或校验包缺失）",
+    "no_network": "先取 zip_fallback，再 agent-install.ps1 -ZipPath <zip> / agent-install.sh --zip <zip>",
+    "do_not": [
+      "不要改 SKILL.md 的 name 字段",
+      "不要把用户品牌素材提交回公开仓库",
+      "不要 Set-ExecutionPolicy，用 -ExecutionPolicy Bypass 单次调用"
+    ]
+  }
+}
