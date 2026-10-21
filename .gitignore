@@ -1,0 +1,12 @@
+﻿__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+# 示例产物（跑 examples/build_demo.py 会重新生成）
+demo/*.pptx
+# 本地构建 / 渲染 / 备份临时目录
+_build/
+_render/
+_assets_brand_backup/
+.preview*/
+.render*/
