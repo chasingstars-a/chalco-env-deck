@@ -61,7 +61,36 @@ if [ -n "$ZIP_FILE" ]; then
 else
   URL="https://codeload.github.com/${REPO}/zip/refs/heads/${REF}"
   log "下载：$URL"
-  curl -fsSL --retry 3 -o "$TMP/skill.zip" "$URL" || fail "download_failed"
+  ok=0
+  # 1) curl
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL --retry 3 --max-time 180 -o "$TMP/skill.zip" "$URL" 2>/dev/null && ok=1
+  fi
+  # 2) wget
+  if [ "$ok" -eq 0 ] && command -v wget >/dev/null 2>&1; then
+    log "用 wget 下载"
+    wget -q -T 180 -O "$TMP/skill.zip" "$URL" 2>/dev/null && ok=1
+  fi
+  # 3) python urllib（公司网络里 curl 常被 TLS 拦截）
+  if [ "$ok" -eq 0 ]; then
+    for pyc in python3 python; do
+      if command -v "$pyc" >/dev/null 2>&1; then
+        log "用 $pyc 下载"
+        CHALCO_DL_URL="$URL" CHALCO_DL_OUT="$TMP/skill.zip" "$pyc" - <<'PY' 2>/dev/null && ok=1
+import os, urllib.request
+url, out = os.environ["CHALCO_DL_URL"], os.environ["CHALCO_DL_OUT"]
+proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or None
+handlers = [urllib.request.ProxyHandler({"https": proxy, "http": proxy})] if proxy else []
+opener = urllib.request.build_opener(*handlers)
+opener.addheaders = [("User-Agent", "chalco-env-deck-installer")]
+data = opener.open(url, timeout=180).read()
+open(out, "wb").write(data)
+PY
+        [ "$ok" -eq 1 ] && break
+      fi
+    done
+  fi
+  [ "$ok" -eq 1 ] || fail "download_failed"
 fi
 [ -s "$TMP/skill.zip" ] || fail "empty_zip"
 

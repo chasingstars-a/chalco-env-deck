@@ -33,6 +33,10 @@ RESULT {"ok":true,"skill":"chalco-env-deck","version":"1.1.0","targets":["C:\\Us
 
 常见 `error`：`下载失败（网络或代理）`、`压缩包里没有 SKILL.md`、`安装不完整`、`依赖未就绪`。
 
+## 下载回退
+
+Windows 按 Invoke-WebRequest → python → curl.exe 依次尝试，POSIX 按 curl → wget → python3；公司网络里 schannel/代理常把第一条打掉，脚本会自动换路。全部失败时给 download_failed，改用 -ZipPath / --zip 离线包。
+
 ## 常用参数
 
 | 需求 | PowerShell | POSIX |

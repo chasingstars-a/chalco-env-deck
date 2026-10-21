@@ -74,10 +74,76 @@ try {
     } else {
         $url = "https://codeload.github.com/$Repo/zip/refs/heads/$Ref"
         Write-Log "下载：$url"
-        $p = @{ Uri = $url; OutFile = $zip; UseBasicParsing = $true }
-        if ($Proxy) { $p.Proxy = $Proxy } elseif ($env:HTTPS_PROXY) { $p.Proxy = $env:HTTPS_PROXY }
-        try { Invoke-WebRequest @p | Out-Null }
-        catch { Stop-Install "下载失败（网络或代理）" @{ hint = "用 -ZipPath 指定本地压缩包" } }
+        $effProxy = if ($Proxy) { $Proxy } elseif ($env:HTTPS_PROXY) { $env:HTTPS_PROXY } else { "" }
+        $downloaded = $false
+
+        # 1) Invoke-WebRequest（最快，但个别机器 TLS/代理栈会失败）
+        try {
+            $p = @{ Uri = $url; OutFile = $zip; UseBasicParsing = $true; TimeoutSec = 120 }
+            if ($effProxy) { $p.Proxy = $effProxy }
+            Invoke-WebRequest @p | Out-Null
+            if ((Test-Path $zip) -and (Get-Item $zip).Length -gt 10000) { $downloaded = $true }
+        } catch { Write-Log "Invoke-WebRequest 失败，尝试其他下载方式" }
+
+        # 2) python urllib（走 HTTPS_PROXY 环境变量，Windows 上通常比 schannel 稳）
+        if (-not $downloaded) {
+            $py = $null
+            foreach ($cand in @("python", "py")) {
+                try {
+                    $null = & $cand --version 2>&1
+                    if ($LASTEXITCODE -eq 0) { $py = $cand; break }
+                } catch { }
+            }
+            if (-not $py -and $env:CHALCO_PYTHON) { $py = $env:CHALCO_PYTHON }
+            if ($py) {
+                Write-Log "用 python 下载"
+                $env:CHALCO_DL_URL = $url
+                $env:CHALCO_DL_OUT = $zip
+                $env:CHALCO_DL_PROXY = $effProxy
+                $fetch = Join-Path $tmp "fetch_zip.py"
+                @'
+import os
+import urllib.request
+
+url = os.environ["CHALCO_DL_URL"]
+out = os.environ["CHALCO_DL_OUT"]
+proxy = os.environ.get("CHALCO_DL_PROXY") or None
+if proxy:
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({"https": proxy, "http": proxy}))
+else:
+    opener = urllib.request.build_opener()
+opener.addheaders = [("User-Agent", "chalco-env-deck-installer")]
+data = opener.open(url, timeout=180).read()
+with open(out, "wb") as f:
+    f.write(data)
+print("ok", len(data))
+'@ | Set-Content -Path $fetch -Encoding UTF8
+                try {
+                    & $py $fetch 2>&1 | Out-Null
+                    if ($LASTEXITCODE -eq 0 -and (Test-Path $zip) -and (Get-Item $zip).Length -gt 10000) {
+                        $downloaded = $true
+                    }
+                } catch { }
+            }
+        }
+
+        # 3) curl.exe
+        if (-not $downloaded) {
+            if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+                Write-Log "用 curl 下载"
+                $cargs = @("-fsSL", "-o", $zip, "--max-time", "180")
+                if ($effProxy) { $cargs = @("-x", $effProxy) + $cargs }
+                try { & curl.exe @cargs $url 2>&1 | Out-Null } catch { }
+                if ((Test-Path $zip) -and (Get-Item $zip).Length -gt 10000) { $downloaded = $true }
+            }
+        }
+
+        if (-not $downloaded) {
+            Stop-Install "下载失败（网络或代理）" @{
+                hint = "用 -ZipPath 指定本地压缩包；或确认代理：-Proxy http://127.0.0.1:7890"
+            }
+        }
     }
     if (-not (Test-Path $zip) -or (Get-Item $zip).Length -lt 10000) {
         Stop-Install "压缩包异常（过小或不存在）" @{ hint = "用 -ZipPath 指定本地压缩包" }
